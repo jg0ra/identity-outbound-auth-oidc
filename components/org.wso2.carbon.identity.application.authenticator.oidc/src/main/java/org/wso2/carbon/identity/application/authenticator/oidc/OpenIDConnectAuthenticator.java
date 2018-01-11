@@ -22,7 +22,7 @@ import net.minidev.json.JSONValue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
+import org.apache.commons.
 import org.apache.commons.logging.LogFactory;
 import org.apache.oltu.oauth2.client.OAuthClient;
 import org.apache.oltu.oauth2.client.URLConnectionClient;
@@ -65,6 +65,10 @@ import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.net.URLEncoder;
 
 public class OpenIDConnectAuthenticator extends AbstractApplicationAuthenticator
         implements FederatedApplicationAuthenticator {
@@ -234,6 +238,7 @@ public class OpenIDConnectAuthenticator extends AbstractApplicationAuthenticator
                 OAuthClientRequest authzRequest;
 
                 String queryString = getQueryString(authenticatorProperties);
+                queryString = interpretQueryString (queryString, request.getParameterMap());
                 Map<String, String> paramValueMap = new HashMap<>();
 
                 if (StringUtils.isNotBlank(queryString)) {
@@ -717,4 +722,30 @@ public class OpenIDConnectAuthenticator extends AbstractApplicationAuthenticator
         }
         return builder.toString();
     }
+    
+    private String interpretQueryString (String queryString, Map<String,String[]> parameters) {
+	
+        String regex = "\\$\\{(\\w+)\\}";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(queryString);
+        while(matcher.find())
+        {
+            String name = matcher.group(1);
+            String[] values = parameters.get(name);
+            String value = "";
+            if (values != null && values.length > 0) {
+                value = values[0];
+            }
+            try {
+                value = URLEncoder.encode (value,"utf-8");
+            } catch (Exception e) {
+                log.error(e.toString());
+            }
+            log.debug ("interpretQueryString " + name + " <" + value + ">");
+            queryString = queryString.replaceAll("\\$\\{" + name + "}", Matcher.quoteReplacement(value));
+        }
+        log.debug ("interpretQueryString <" + queryString + ">");
+        return queryString;
+    }	
+        
 }
